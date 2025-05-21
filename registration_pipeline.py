@@ -30,73 +30,35 @@ import time
 #print date and time
 print(time.strftime("%d/%m/%Y %H:%M:%S"))
 
+'''
+Set which group to run
+'''
 group = 'infant'
 group_info = params.load_group_params(group)
 
-#set directories
-raw_data_dir = group_info.raw_data_dir
 
-raw_anat_dir = group_info.raw_anat_dir
-raw_func_dir = group_info.raw_func_dir
-out_dir = group_info.out_dir
-
-
-#set suffixes for anat and func files
-anat_suf = group_info.anat_suf
-func_suf = group_info.func_suf
-
-
-
-
-#directory with preprocessing scripts
-script_dir = f'{git_dir}/fmri'
-
-#participants_file = 'participants_dhcp'
-
-#load subject list
-full_sub_list = group_info.sub_list
-
-#limit to subs with 1 in to_run col
-sub_list = full_sub_list[full_sub_list['to_run']==1]
-#only grab subs with two sessions
-#sub_list = sub_list[sub_list.duplicated(subset = 'participant_id', keep = False)]
-#reset index
-#sub_list.reset_index(drop=True, inplace=True)
-
-#start half way through sublist
-#sub_list = sub_list[int(len(sub_list)/2):]
-
-#number of subs to run in parallel
-n_jobs = 30
-#how long to wait between batches
-job_time = 20
-
-
-
-
-#set atlas
-atlas = 'wang'
+'''
+Set atlas or roi to register
+'''
+atlas = 'wang '
 
 roi = 'pulvinar'
 
 '''
 Flags to determine which preprocessing steps to run
 '''
-#finds eligible subjects based on having all scans
-find_eligible_subs = False
-
 #extract brain
-extract_brain = False
+extract_brain = True
 
 #Reg-phase1-3 : Register individual anat to fsaverage
-reg_phase1 = False
-reg_phase2 = False
-reg_phase3 = False
+reg_phase1 = True
+reg_phase2 = True
+reg_phase3 = True
 
 #Registers atlas to individual anat
-register_atlas = False
+register_atlas = True
 #split atlas into individual rois
-split_atlas = False
+split_atlas = True
 
 #extracts mean timeseries from each roi of atlas
 extract_ts_roi = True
@@ -114,9 +76,40 @@ reg_atlas2dwi = False
 run_probtrackx = False
 
 
+#set directories
+raw_data_dir = group_info.raw_data_dir
+
+raw_anat_dir = group_info.raw_anat_dir
+raw_func_dir = group_info.raw_func_dir
+out_dir = group_info.out_dir
+
+#set suffixes for anat and func files
+anat_suf = group_info.anat_suf
+func_suf = group_info.func_suf
+
+#directory with preprocessing scripts
+script_dir = f'{git_dir}/fmri'
+
+#participants_file = 'participants_dhcp'
+global full_sub_list
+#load subject list
+full_sub_list = group_info.sub_list
+
+#limit to subs with 1 in to_run col
+sub_list = full_sub_list[full_sub_list['to_run']==1]
+
+#Flag to determine if running in parallel or not
+batch_job = False
+
+#number of subs to run in parallel
+n_jobs = 30
+#how long to wait between batches
+job_time = 20
 
 
-def launch_script(sub_list,script_name, analysis_name,pre_req='', atlas = ''):
+
+
+def launch_script(full_sub_list, sub_list,script_name, analysis_name,pre_req='', atlas = ''):
     '''
     Launches preprocessing script and checks for errors
     '''
@@ -125,6 +118,7 @@ def launch_script(sub_list,script_name, analysis_name,pre_req='', atlas = ''):
     #create new column if analysis_name doesn't exist
     if analysis_name not in sub_list.columns:
         sub_list[analysis_name] = ''
+        
         full_sub_list[analysis_name] = ''
 
     #check if script has already been run and whether pre-reqs have been met
@@ -142,15 +136,18 @@ def launch_script(sub_list,script_name, analysis_name,pre_req='', atlas = ''):
         job_count += 1
 
         #check if job count is greater than n_jobs
-        if job_count > n_jobs:
+        if job_count > n_jobs and batch_job == True:
             #wait for jobs to finish
             print(f'Waiting for {job_time} minutes')
             time.sleep(job_time*60)
             job_count = 0
 
         try:
-            #run script
-            bash_cmd = f'python {script_dir}/{script_name} {sub} {ses} {group} {atlas} &'
+            bash_cmd = f'python {script_dir}/{script_name} {sub} {ses} {group} {atlas}' 
+            if batch_job == True:
+                #if batch is true, add ampersandrun script
+                bash_cmd = bash_cmd + f' &'
+
             subprocess.run(bash_cmd, check=True, shell=True)
             
 
@@ -184,58 +181,50 @@ def launch_script(sub_list,script_name, analysis_name,pre_req='', atlas = ''):
 start = time.time()
 
 
-if find_eligible_subs:
-    '''
-    Pre-registration phase: Check which subjects have all scans
-
-    Create new participant list with eligible subjects
-    '''
-    find_eligble_subs()
-
 
 if extract_brain:
     '''
     Extract brain
     '''
-    launch_script(sub_list = sub_list,script_name='extract_brain.py',analysis_name=f'extract_brain')
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='extract_brain.py',analysis_name=f'extract_brain')
             
 if reg_phase1:
     '''
     Phase 1: Converts GIFTI files to surf
     '''
     
-    launch_script(sub_list = sub_list,script_name='phase1_registration.py',analysis_name='phase_1',pre_req='extract_brain')
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='phase1_registration.py',analysis_name='phase_1',pre_req='extract_brain')
 
 
 if reg_phase2:
     '''
     Phase 3 of registration pipeline: Creates final surfaces and registers to fsaverage
     '''
-    launch_script(sub_list = sub_list,script_name='phase2_registration.py',analysis_name='phase_2',pre_req='phase_1')
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='phase2_registration.py',analysis_name='phase_2',pre_req='phase_1')
 
 if reg_phase3:
     '''
     Phase 4 of registration pipeline: Registers anat to EPI
     '''
-    launch_script(sub_list = sub_list,script_name='phase3_registration.py',analysis_name='phase_3',pre_req='phase_2')
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='phase3_registration.py',analysis_name='phase_3',pre_req='phase_2')
 
 if register_atlas:
     '''
     Register atlas to individual anat
     '''
-    launch_script(sub_list = sub_list,script_name='register_atlas.py',analysis_name=f'{atlas}_reg',pre_req='phase_3', atlas = atlas)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='register_atlas.py',analysis_name=f'{atlas}_reg',pre_req='phase_3', atlas = atlas)
 
 if split_atlas:
     '''
     Split atlas into individual rois
     '''
-    launch_script(sub_list = sub_list,script_name='split_atlas.py',analysis_name=f'{atlas}_split',pre_req=f'{atlas}_reg', atlas = atlas)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='split_atlas.py',analysis_name=f'{atlas}_split',pre_req=f'{atlas}_reg', atlas = atlas)
 
 if extract_ts_roi:
     '''
     Extract mean timeseries from each roi of atlas
     '''
-    launch_script(sub_list = sub_list,script_name='extract_ts_roi.py',analysis_name=f'{atlas}_ts',pre_req=f'{atlas}_split', atlas = atlas)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='extract_ts_roi.py',analysis_name=f'{atlas}_ts',pre_req=f'{atlas}_split', atlas = atlas)
 
 
 
@@ -243,7 +232,7 @@ if register_vol_roi:
     '''
     Register volumetric roi to individual anat
     '''
-    launch_script(sub_list = sub_list,script_name='register_vol_roi.py',analysis_name=f'{roi}_reg',pre_req=f'extract_brain', atlas = roi)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='register_vol_roi.py',analysis_name=f'{roi}_reg',pre_req=f'extract_brain', atlas = roi)
 
 if extract_ts_voxel:
     '''
@@ -251,20 +240,20 @@ if extract_ts_voxel:
 
     *note: this is a very time and memory intensive if you have many ROIs
     '''
-    launch_script(sub_list = sub_list,script_name='extract_ts_voxel.py',analysis_name=f'{roi}_ts',pre_req=f'{roi}_reg', atlas = roi)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='extract_ts_voxel.py',analysis_name=f'{roi}_ts',pre_req=f'{roi}_reg', atlas = roi)
 
 
 if reg_atlas2dwi:
     '''
     Register atlas rois to dwi
     '''
-    launch_script(sub_list = sub_list,script_name='reg_atlas2dwi.py',analysis_name=f'{atlas}_dwi',pre_req=f'{atlas}_split', atlas = atlas)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='reg_atlas2dwi.py',analysis_name=f'{atlas}_dwi',pre_req=f'{atlas}_split', atlas = atlas)
 
 if run_probtrackx:
     '''
     Run probtrackx on all rois of the atlas
     '''
-    launch_script(sub_list = sub_list,script_name='run_probtrackx.py',analysis_name=f'{atlas}_probtrackx',pre_req=f'{atlas}_dwi', atlas = atlas)
+    launch_script(full_sub_list = full_sub_list, sub_list = sub_list,script_name='run_probtrackx.py',analysis_name=f'{atlas}_probtrackx',pre_req=f'{atlas}_dwi', atlas = atlas)
 
 #end time
 end = time.time()
