@@ -2,7 +2,7 @@
 
 This pipeline projects cortical atlases from adult fsaverage space to individual neonate brain space using surface-based registration. The pipeline supports multiple output spaces including anatomical, functional (EPI), and diffusion (DWI) spaces.
 
-For full repository and documentation, visit: https://github.com/vayzenb/dhcp_registration
+
 
 ## Overview
 
