@@ -2,7 +2,7 @@
 Extract mean timeseries from a set of ROIs
 '''
 
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()

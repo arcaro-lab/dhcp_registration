@@ -1,7 +1,7 @@
 '''
 Phase 4 of registration pipeline: Registers anat to EPI
 '''
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()

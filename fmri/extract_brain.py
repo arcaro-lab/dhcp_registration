@@ -4,7 +4,7 @@ Conduct brain extraction by using segmentation mask
 *This is mostly neeeded for volumentric ROI registration
 '''
 
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()

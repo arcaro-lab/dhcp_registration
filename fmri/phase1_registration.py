@@ -1,7 +1,7 @@
 '''
 Phase 1 of registration pipeline: Creates relevant directories and converts giftis to surf
 '''
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()

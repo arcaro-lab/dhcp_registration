@@ -8,7 +8,7 @@ Extracting timeseries data from each roi of an atlast
 
 
 
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()

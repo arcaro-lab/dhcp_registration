@@ -1,7 +1,7 @@
 '''
 Phase 2 of registration pipeline: Creates final surfaces and registers to fsaverage
 '''
-project_name = 'dhcp'
+project_name = 'dhcp_registration'
 import os
 #get current working directory
 cwd = os.getcwd()
